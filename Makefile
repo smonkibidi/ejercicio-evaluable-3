@@ -11,19 +11,19 @@ RPC_HEADERS = clavesRPC.h
 
 all: generate_rpc libclaves.so servidor cliente
 
-# REGLA OBLIGATORIA: Invocar rpcgen
+# Invocar rpcgen
 generate_rpc: clavesRPC.x
 	rpcgen -aNM clavesRPC.x
 
-# Biblioteca compartida con la lógica de almacenamiento (Ejercicio 1 y 2)
+# Biblioteca compartida con la lógica de almacenamiento
 libclaves.so: src/claves.c include/claves.h
 	$(CC) $(CFLAGS) -fPIC -shared src/claves.c -o libclaves.so -lpthread
 
-# El servidor ahora incluirá los ficheros _svc y _xdr generados [cite: 44]
+# EPara incluir los ficheros _svc y _xdr generados
 servidor: clavesRPC_svc.c clavesRPC_xdr.c libclaves.so
 	$(CC) $(CFLAGS) clavesRPC_svc.c clavesRPC_xdr.c -o servidor ./libclaves.so $(LDLIBS)
 
-# El cliente (para pruebas)
+# El cliente
 cliente: tests/app-cliente.c libclaves.so
 	$(CC) $(CFLAGS) tests/app-cliente.c -o cliente ./libclaves.so $(LDLIBS)
 
