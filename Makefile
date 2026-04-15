@@ -1,40 +1,31 @@
-CC      = gcc
-CFLAGS  = -Wall -fPIC -g -Iinclude
+# Variables de compilación
+CC = gcc
+CFLAGS = -Wall -g -I/usr/include/tirpc
+LDLIBS = -lnsl -ltirpc
 
-# Fuentes
-CLAVES_C   = src/claves.c
-PROXY_C    = src/proxy-sock.c
-SERVIDOR_C = src/servidor-sock.c
-CLIENTE_C  = tests/app-cliente.c
+# Archivos generados por rpcgen
+RPC_SOURCES = clavesRPC_clnt.c clavesRPC_svc.c clavesRPC_xdr.c
+RPC_HEADERS = clavesRPC.h
 
-# Cabeceras
-CLAVES_H    = include/claves.h
-PROTOCOLO_H = include/protocolo.h
+.PHONY: all clean generate_rpc
 
-# Artefactos
-LIB_CLAVES = libclaves.so
-LIB_PROXY  = libproxyclaves.so
+all: generate_rpc libclaves.so servidor cliente
 
-.PHONY: all clean
+# REGLA OBLIGATORIA: Invocar rpcgen
+generate_rpc: clavesRPC.x
+	rpcgen -aNM clavesRPC.x
 
-all: $(LIB_CLAVES) $(LIB_PROXY) servidor cliente
+# Biblioteca compartida con la lógica de almacenamiento (Ejercicio 1 y 2)
+libclaves.so: src/claves.c include/claves.h
+	$(CC) $(CFLAGS) -fPIC -shared src/claves.c -o libclaves.so -lpthread
 
-# Biblioteca de almacenamiento
-$(LIB_CLAVES): $(CLAVES_C) $(CLAVES_H)
-	$(CC) $(CFLAGS) -shared -o $@ $(CLAVES_C) -lpthread
+# El servidor ahora incluirá los ficheros _svc y _xdr generados [cite: 44]
+servidor: clavesRPC_svc.c clavesRPC_xdr.c libclaves.so
+	$(CC) $(CFLAGS) clavesRPC_svc.c clavesRPC_xdr.c -o servidor ./libclaves.so $(LDLIBS)
 
-# Biblioteca cliente
-$(LIB_PROXY): $(PROXY_C) $(CLAVES_H) $(PROTOCOLO_H)
-	$(CC) $(CFLAGS) -shared -o $@ $(PROXY_C)
+# El cliente (para pruebas)
+cliente: tests/app-cliente.c libclaves.so
+	$(CC) $(CFLAGS) tests/app-cliente.c -o cliente ./libclaves.so $(LDLIBS)
 
-# Servidor TCP concurrente
-servidor: $(SERVIDOR_C) $(LIB_CLAVES) $(CLAVES_H) $(PROTOCOLO_H)
-	$(CC) $(CFLAGS) $(SERVIDOR_C) -o $@ $(LIB_CLAVES) -lpthread -Wl,-rpath,.
-
-# Ejecutable cliente de pruebas
-cliente: $(CLIENTE_C) $(LIB_PROXY) $(CLAVES_H)
-	$(CC) $(CFLAGS) $(CLIENTE_C) -o $@ $(LIB_PROXY) -Wl,-rpath,.
-
-# Limpieza
 clean:
-	rm -f servidor cliente $(LIB_CLAVES) $(LIB_PROXY) *.o
+	rm -f servidor cliente libclaves.so $(RPC_SOURCES) $(RPC_HEADERS) *.o
