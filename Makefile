@@ -13,7 +13,7 @@ all: generate_rpc libclaves.so servidor cliente
 
 # Invocar rpcgen
 generate_rpc: clavesRPC.x
-	rpcgen -aNM clavesRPC.x
+	rpcgen -NM clavesRPC.x
 
 # Biblioteca compartida con la lógica de almacenamiento
 libclaves.so: src/claves.c include/claves.h
