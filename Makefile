@@ -1,31 +1,28 @@
-# Variables de compilación
-CC = gcc
-CFLAGS = -Wall -g -I/usr/include/tirpc
-LDLIBS = -lnsl -ltirpc
+CC      = gcc
+CFLAGS  = -Wall -g -I/usr/include/tirpc -Iinclude -I.
+LDLIBS  = -ltirpc -lpthread
 
-# Archivos generados por rpcgen
-RPC_SOURCES = clavesRPC_clnt.c clavesRPC_svc.c clavesRPC_xdr.c
-RPC_HEADERS = clavesRPC.h
+RPC_GEN_HDRS = clavesRPC.h
+RPC_GEN_SRC  = clavesRPC_clnt.c clavesRPC_svc.c clavesRPC_xdr.c
 
 .PHONY: all clean generate_rpc
 
-all: generate_rpc libclaves.so servidor cliente
+all: libclaves.so libproxyclaves.so clavesRPC_server cliente
 
-# Invocar rpcgen
 generate_rpc: clavesRPC.x
 	rpcgen -NM clavesRPC.x
 
-# Biblioteca compartida con la lógica de almacenamiento
 libclaves.so: src/claves.c include/claves.h
-	$(CC) $(CFLAGS) -fPIC -shared src/claves.c -o libclaves.so -lpthread
+	$(CC) $(CFLAGS) -fPIC -shared src/claves.c -o libclaves.so $(LDLIBS)
 
-# EPara incluir los ficheros _svc y _xdr generados
-servidor: clavesRPC_svc.c clavesRPC_xdr.c libclaves.so
-	$(CC) $(CFLAGS) clavesRPC_svc.c clavesRPC_xdr.c -o servidor ./libclaves.so $(LDLIBS)
+clavesRPC_server: clavesRPC_svc.c clavesRPC_xdr.c clavesRPC_server.c libclaves.so
+	$(CC) $(CFLAGS) clavesRPC_svc.c clavesRPC_xdr.c clavesRPC_server.c -o clavesRPC_server -L. -lclaves -Wl,-rpath,. $(LDLIBS)
 
-# El cliente
-cliente: tests/app-cliente.c libclaves.so
-	$(CC) $(CFLAGS) tests/app-cliente.c -o cliente ./libclaves.so $(LDLIBS)
+libproxyclaves.so: src/proxy-rpc.c clavesRPC_clnt.c clavesRPC_xdr.c include/claves.h
+	$(CC) $(CFLAGS) -fPIC -shared src/proxy-rpc.c clavesRPC_clnt.c clavesRPC_xdr.c -o libproxyclaves.so $(LDLIBS)
+
+cliente: tests/app-cliente.c libproxyclaves.so
+	$(CC) $(CFLAGS) tests/app-cliente.c -o cliente -L. -lproxyclaves -Wl,-rpath,. $(LDLIBS)
 
 clean:
-	rm -f servidor cliente libclaves.so $(RPC_SOURCES) $(RPC_HEADERS) *.o
+	rm -f clavesRPC_server cliente libclaves.so libproxyclaves.so *.o $(RPC_GEN_HDRS) $(RPC_GEN_SRC)
