@@ -11,6 +11,7 @@ static CLIENT *crear_cliente(void) {
         fprintf(stderr, "[proxy-rpc] ERROR: variable IP_TUPLAS no definida\n");
         return NULL;
     }
+    
     CLIENT *clnt = clnt_create(ip, CLAVES_PROG, CLAVES_VERS, "tcp");
     if (clnt == NULL) {
         clnt_pcreateerror(ip);
@@ -22,12 +23,11 @@ static CLIENT *crear_cliente(void) {
 int destroy(void) {
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
+    
     int result = 0;
-    
-    /* CORRECCIÓN: (resultado, cliente) */
     enum clnt_stat stat = destroy_rpc_1(&result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     return result;
 }
@@ -35,6 +35,7 @@ int destroy(void) {
 int set_value(char *key, char *value1, int N_value2, float *V_value2, struct Paquete value3) {
     if (key == NULL || value1 == NULL || V_value2 == NULL) return -1;
     if (N_value2 < 1 || N_value2 > 32) return -1;
+    
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
     
@@ -50,26 +51,26 @@ int set_value(char *key, char *value1, int N_value2, float *V_value2, struct Paq
     args.value3.z = value3.z;
     
     int result = 0;
-    /* CORRECCIÓN: Se pasa 'args' por valor, luego &result, luego clnt */
     enum clnt_stat stat = set_value_rpc_1(args, &result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     return result;
 }
 
 int get_value(char *key, char *value1, int *N_value2, float *V_value2, struct Paquete *value3) {
     if (key == NULL || value1 == NULL || N_value2 == NULL || V_value2 == NULL || value3 == NULL) return -1;
+    
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
     
+    /* Inicializar a cero para evitar problemas de memoria dinámica en el decodificador XDR */
     get_value_res result;
     memset(&result, 0, sizeof(result));
     
-    /* CORRECCIÓN: Se pasa 'key' por valor (ya es char*), &result, clnt */
     enum clnt_stat stat = get_value_rpc_1(key, &result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     if (result.error != 0) {
         xdr_free((xdrproc_t)xdr_get_value_res, (char *)&result);
@@ -87,6 +88,7 @@ int get_value(char *key, char *value1, int *N_value2, float *V_value2, struct Pa
     value3->y = result.value3.y;
     value3->z = result.value3.z;
     
+    /* Liberar los buffers que haya instanciado internamente XDR */
     xdr_free((xdrproc_t)xdr_get_value_res, (char *)&result);
     return 0;
 }
@@ -94,6 +96,7 @@ int get_value(char *key, char *value1, int *N_value2, float *V_value2, struct Pa
 int modify_value(char *key, char *value1, int N_value2, float *V_value2, struct Paquete value3) {
     if (key == NULL || value1 == NULL || V_value2 == NULL) return -1;
     if (N_value2 < 1 || N_value2 > 32) return -1;
+    
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
     
@@ -109,38 +112,37 @@ int modify_value(char *key, char *value1, int N_value2, float *V_value2, struct 
     args.value3.z = value3.z;
     
     int result = 0;
-    /* CORRECCIÓN */
     enum clnt_stat stat = modify_value_rpc_1(args, &result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     return result;
 }
 
 int delete_key(char *key) {
     if (key == NULL) return -1;
+    
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
     
     int result = 0;
-    /* CORRECCIÓN */
     enum clnt_stat stat = delete_key_rpc_1(key, &result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     return result;
 }
 
 int exist(char *key) {
     if (key == NULL) return -1;
+    
     CLIENT *clnt = crear_cliente();
     if (clnt == NULL) return -1;
     
     int result = 0;
-    /* CORRECCIÓN */
     enum clnt_stat stat = exist_rpc_1(key, &result, clnt);
-    
     clnt_destroy(clnt);
+    
     if (stat != RPC_SUCCESS) return -1;
     return result;
 }
